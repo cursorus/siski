@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+<title>Photos Library</title>
+<style>
+  :root{
+    --bg:#0b0c0f;
+    --panel:#15171c;
+    --panel-2:#1c1f26;
+    --ink:#eef0f3;
+    --muted:#8b919c;
+    --accent:#7c9eff;
+    --spine:#06070a;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{
+    font-family:-apple-system,"SF Pro Text",system-ui,sans-serif;
+    background:var(--bg);
+    color:var(--ink);
+    min-height:100vh;
+    -webkit-tap-highlight-color:transparent;
+  }
+  header{
+    padding:20px 18px 8px;
+    display:flex;
+    align-items:baseline;
+    justify-content:space-between;
+  }
+  header h1{
+    font-family:Georgia,'Times New Roman',serif;
+    font-weight:700;
+    font-size:26px;
+    letter-spacing:0.2px;
+  }
+  header .count{
+    font-size:13px;
+    color:var(--muted);
+  }
+
+  .accounts{
+    display:flex;
+    gap:8px;
+    overflow-x:auto;
+    padding:0 18px 14px;
+    -webkit-overflow-scrolling:touch;
+  }
+  .accounts::-webkit-scrollbar{display:none;}
+  .acc-chip{
+    flex:0 0 auto;
+    display:flex;
+    align-items:center;
+    gap:8px;
+    background:var(--panel);
+    border:1px solid #23262e;
+    border-radius:999px;
+    padding:8px 14px;
+    font-size:13px;
+    cursor:pointer;
+    transition:border-color .15s ease;
+  }
+  .acc-chip.active{
+    border-color:var(--accent);
+    color:var(--accent);
+  }
+  .acc-chip .dot{
+    width:8px;height:8px;border-radius:50%;
+    background:#3a3f4b;
+  }
+  .acc-chip.active .dot{background:var(--accent);}
+  .acc-chip .x{
+    color:var(--muted);
+    font-size:14px;
+    margin-left:2px;
+  }
+  .add-chip{
+    flex:0 0 auto;
+    background:transparent;
+    border:1px dashed #2c2f38;
+    color:var(--muted);
+    border-radius:999px;
+    padding:8px 16px;
+    font-size:13px;
+    cursor:pointer;
+  }
+
+  .shelf-wrap{
+    padding:6px 18px 90px;
+  }
+  .shelf{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:18px 16px;
+  }
+  .book{
+    cursor:pointer;
+    -webkit-tap-highlight-color:transparent;
+  }
+  .book .cover{
+    position:relative;
+    aspect-ratio:3/4;
+    border-radius:6px 10px 10px 6px;
+    background:linear-gradient(135deg,#2a2d35,#15171c 65%);
+    box-shadow:
+      inset 6px 0 0 0 var(--spine),
+      inset 8px 0 10px -6px rgba(0,0,0,.6),
+      0 10px 24px -10px rgba(0,0,0,.7);
+    overflow:hidden;
+    display:flex;
+    align-items:flex-end;
+  }
+  .book .cover img{
+    width:100%;height:100%;object-fit:cover;
+    opacity:.55;
+    filter:saturate(.85) brightness(.75);
+  }
+  .book .cover .title-overlay{
+    position:absolute;
+    inset:0;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:0 14px;
+    text-align:center;
+    font-family:Georgia,'Times New Roman',serif;
+    font-weight:700;
+    font-size:18px;
+    line-height:1.25;
+    color:#f5f3ee;
+    text-shadow:0 2px 10px rgba(0,0,0,.7);
+  }
+  .book .cover .title-overlay.empty{
+    color:#cfd2da;
+  }
+  .book .cover::after{
+    content:"";
+    position:absolute;
+    left:8px;top:0;bottom:0;width:1px;
+    background:rgba(255,255,255,.06);
+  }
+  .book .meta{
+    padding:8px 4px 0 10px;
+  }
+  .book .meta .name{
+    font-size:13.5px;
+    font-weight:600;
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+  }
+  .book .meta .sub{
+    font-size:11.5px;
+    color:var(--muted);
+    margin-top:2px;
+  }
+
+  .empty-state{
+    padding:60px 24px;
+    text-align:center;
+    color:var(--muted);
+  }
+  .empty-state .icon{font-size:34px;margin-bottom:10px;}
+  .empty-state .login-btn{
+    margin-top:18px;
+    background:var(--ink);
+    color:#15171c;
+    border:none;
+    border-radius:10px;
+    padding:12px 22px;
+    font-size:15px;
+    font-weight:600;
+    cursor:pointer;
+  }
+
+  .skeleton{
+    background:linear-gradient(100deg,#171920 30%,#1f222a 50%,#171920 70%);
+    background-size:200% 100%;
+    animation:shimmer 1.4s infinite;
+  }
+  @keyframes shimmer{
+    0%{background-position:200% 0;}
+    100%{background-position:-200% 0;}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Library</h1>
+  <span class="count" id="countLabel"></span>
+</header>
+
+<div class="accounts" id="accounts"></div>
+
+<div class="shelf-wrap" id="shelfWrap">
+  <div class="empty-state">
+    <div class="icon">📚</div>
+    <div>Войдите в Google, чтобы увидеть альбомы</div>
+    <button class="login-btn" onclick="login()">Войти через Google</button>
+  </div>
+</div>
+
+<script>
+  const CLIENT_ID = "ВСТАВЬ_СВОЙ_CLIENT_ID";
+  const REDIRECT_URI = window.location.origin + "/api/callback";
+  const SCOPE = "https://www.googleapis.com/auth/photoslibrary.readonly";
+
+  function login(){
+    const params = new URLSearchParams({
+      client_id: CLIENT_ID,
+      redirect_uri: REDIRECT_URI,
+      response_type: "code",
+      scope: SCOPE,
+      access_type: "offline",
+      prompt: "consent select_account"
+    });
+    window.location.href = "https://accounts.google.com/o/oauth2/v2/auth?" + params.toString();
+  }
+
+  function getAccounts(){
+    return JSON.parse(localStorage.getItem("accounts") || "[]");
+  }
+  function saveAccounts(a){
+    localStorage.setItem("accounts", JSON.stringify(a));
+  }
+  function getActiveIndex(){
+    const v = localStorage.getItem("activeAccount");
+    return v === null ? 0 : parseInt(v, 10);
+  }
+  function setActiveIndex(i){
+    localStorage.setItem("activeAccount", String(i));
+    render();
+  }
+  function removeAccount(i, e){
+    e.stopPropagation();
+    const accounts = getAccounts();
+    accounts.splice(i, 1);
+    saveAccounts(accounts);
+    if (getActiveIndex() >= accounts.length) localStorage.setItem("activeAccount", "0");
+    render();
+  }
+
+  function renderAccountChips(){
+    const accounts = getAccounts();
+    const active = getActiveIndex();
+    const wrap = document.getElementById("accounts");
+    wrap.innerHTML = "";
+
+    accounts.forEach((acc, i) => {
+      const chip = document.createElement("div");
+      chip.className = "acc-chip" + (i === active ? " active" : "");
+      chip.onclick = () => setActiveIndex(i);
+      chip.innerHTML = `
+        <span class="dot"></span>
+        <span>${acc.email || ("Аккаунт " + (i+1))}</span>
+        <span class="x" onclick="removeAccount(${i}, event)">✕</span>
+      `;
+      wrap.appendChild(chip);
+    });
+
+    const add = document.createElement("div");
+    add.className = "add-chip";
+    add.textContent = accounts.length ? "+ Добавить аккаунт" : "Войти через Google";
+    add.onclick = login;
+    wrap.appendChild(add);
+  }
+
+  function bookHTML(album, accIndex){
+    const cover = album.coverPhotoBaseUrl ? `${album.coverPhotoBaseUrl}=w300-h400-c` : "";
+    const title = album.title || "Без названия";
+    const count = album.mediaItemsCount ? `${album.mediaItemsCount} фото` : "пусто";
+    return `
+      <div class="book" onclick="openAlbum(${accIndex}, '${album.id}', ${JSON.stringify(title)})">
+        <div class="cover">
+          ${cover ? `<img src="${cover}" loading="lazy" />` : ""}
+          <div class="title-overlay ${cover ? "" : "empty"}">${title}</div>
+        </div>
+        <div class="meta">
+          <div class="name">${title}</div>
+          <div class="sub">${count}</div>
+        </div>
+      </div>
+    `;
+  }
+
+  function skeletonHTML(){
+    let out = "";
+    for (let i=0;i<4;i++){
+      out += `
+        <div class="book">
+          <div class="cover skeleton" style="display:block"></div>
+          <div class="meta">
+            <div class="name skeleton" style="height:12px;border-radius:4px;width:70%;margin-bottom:6px"></div>
+            <div class="sub skeleton" style="height:10px;border-radius:4px;width:40%"></div>
+          </div>
+        </div>
+      `;
+    }
+    return out;
+  }
+
+  function openAlbum(accIndex, albumId, title){
+    window.location.href = `/album.html?acc=${accIndex}&albumId=${albumId}&title=${encodeURIComponent(title)}`;
+  }
+
+  async function loadAlbums(){
+    const accounts = getAccounts();
+    const active = getActiveIndex();
+    const acc = accounts[active];
+    const shelfWrap = document.getElementById("shelfWrap");
+    const countLabel = document.getElementById("countLabel");
+
+    if (!acc){
+      shelfWrap.innerHTML = `
+        <div class="empty-state">
+          <div class="icon">📚</div>
+          <div>Войдите в Google, чтобы увидеть альбомы</div>
+          <button class="login-btn" onclick="login()">Войти через Google</button>
+        </div>
+      `;
+      countLabel.textContent = "";
+      return;
+    }
+
+    shelfWrap.innerHTML = `<div class="shelf">${skeletonHTML()}</div>`;
+
+    try{
+      const res = await fetch(`/api/albums?token=${acc.access_token}`);
+      const data = await res.json();
+      const albums = data.albums || [];
+
+      countLabel.textContent = albums.length ? `${albums.length} альбомов` : "";
+
+      if (!albums.length){
+        shelfWrap.innerHTML = `
+          <div class="empty-state">
+            <div class="icon">🗃️</div>
+            <div>Альбомы не найдены</div>
+          </div>
+        `;
+        return;
+      }
+
+      shelfWrap.innerHTML = `<div class="shelf">${albums.map(a => bookHTML(a, active)).join("")}</div>`;
+    } catch(e){
+      shelfWrap.innerHTML = `
+        <div class="empty-state">
+          <div class="icon">⚠️</div>
+          <div>Не удалось загрузить альбомы</div>
+        </div>
+      `;
+    }
+  }
+
+  function render(){
+    renderAccountChips();
+    loadAlbums();
+  }
+
+  const hash = new URLSearchParams(window.location.hash.slice(1));
+  if (hash.get("access_token")){
+    const accounts = getAccounts();
+    accounts.push({
+      access_token: hash.get("access_token"),
+      refresh_token: hash.get("refresh_token") || "",
+      email: hash.get("email") || ""
+    });
+    saveAccounts(accounts);
+    localStorage.setItem("activeAccount", String(accounts.length - 1));
+    window.location.hash = "";
+    window.history.replaceState({}, document.title, "/");
+  }
+
+  render();
+</script>
+</body>
+</html>
